@@ -17,7 +17,7 @@ Function Create-FtpSite() {
     $DefaultFtpPath = "c:\inetpub\wwwroot\"
     $DefaultNonSecureFtpPort = 21
     #$DefaultFtpSiteName = "Default FTP Site"
-    $DefaultFtpSiteName = "FTP31"
+    $DefaultFtpSiteName = "FTPSSite001"
     $DefaultFtpUser = $DefaultFtpSiteName + "user"
 
     # Create FTP user Account
