@@ -17,7 +17,7 @@ Function Create-FtpSite() {
     $DefaultFtpPath = "c:\inetpub\wwwroot\"
     $DefaultNonSecureFtpPort = 21
     #$DefaultFtpSiteName = "Default FTP Site"
-    $DefaultFtpSiteName = "FTP30"
+    $DefaultFtpSiteName = "FTP31"
     $DefaultFtpUser = $DefaultFtpSiteName + "user"
 
     # Create FTP user Account
@@ -29,9 +29,9 @@ Function Create-FtpSite() {
 	New-WebFtpSite -Name $DefaultFtpSiteName -PhysicalPath $DefaultFtpPath  -Port $DefaultNonSecureFtpPort -IPAddress * 
     
     # appcmd will be replace on the next version
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:"FTP29" /ftpServer.security.ssl.controlChannelPolicy:SslRequire
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:"FTP29" /ftpServer.security.ssl.dataChannelPolicy:SslRequire
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:"FTP29" /ftpServer.security.ssl.ssl128:true
+    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.controlChannelPolicy:SslRequire
+    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.dataChannelPolicy:SslRequire
+    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.ssl128:true
     c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.authentication.basicAuthentication.enabled:true
     c:\windows\system32\inetsrv\appcmd.exe set config $DefaultFtpSiteName /section:system.ftpserver/security/authorization /+"[accessType='Allow',permissions='Read,Write',users='$DefaultFtpUser']" /commit:apphost
     c:\windows\system32\inetsrv\appcmd.exe set config -section:system.ftpServer/firewallSupport /lowDataChannelPort:'5000' /commit:apphost
