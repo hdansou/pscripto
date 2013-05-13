@@ -1,12 +1,3 @@
-# Create a FTPS site
-# SSL is allowed but not required for the moment. 
-# because not many FTP client support FTPS.
-# Author : Hounsou Dansou
-# Version : 0.1.0
-# Date : 12/05/2013
-
-
-
 Function Generate-Password ($Length = 14) {
         $Letters = 65..90 + 97..122
         $Digits = 48..57
@@ -26,20 +17,21 @@ Function Create-FtpSite() {
     $DefaultFtpPath = "c:\inetpub\wwwroot\"
     $DefaultNonSecureFtpPort = 21
     #$DefaultFtpSiteName = "Default FTP Site"
-    $DefaultFtpSiteName = "FTP29"
+    $DefaultFtpSiteName = "FTP30"
     $DefaultFtpUser = $DefaultFtpSiteName + "user"
 
     # Create FTP user Account
     $newFtpPassword = Generate-Password
-  net user /add $DefaultFtpUser $newFtpPassword
+	net user /add $DefaultFtpUser $newFtpPassword
     Write-Host "[*] Completed '$DefaultFtpUser' creation"
     
     #Start-Sleep -Seconds 1
 	New-WebFtpSite -Name $DefaultFtpSiteName -PhysicalPath $DefaultFtpPath  -Port $DefaultNonSecureFtpPort -IPAddress * 
     
     # appcmd will be replace on the next version
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.controlChannelPolicy:SslAllow
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.dataChannelPolicy:SslAllow
+    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:"FTP29" /ftpServer.security.ssl.controlChannelPolicy:SslRequire
+    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:"FTP29" /ftpServer.security.ssl.dataChannelPolicy:SslRequire
+    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:"FTP29" /ftpServer.security.ssl.ssl128:true
     c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.authentication.basicAuthentication.enabled:true
     c:\windows\system32\inetsrv\appcmd.exe set config $DefaultFtpSiteName /section:system.ftpserver/security/authorization /+"[accessType='Allow',permissions='Read,Write',users='$DefaultFtpUser']" /commit:apphost
     c:\windows\system32\inetsrv\appcmd.exe set config -section:system.ftpServer/firewallSupport /lowDataChannelPort:'5000' /commit:apphost
@@ -69,10 +61,9 @@ Function Create-FtpSite() {
 
         Write-Host "[*] Completed $DefaultFtpSiteName creation"	
 
-    	netsh advfirewall firewall add rule name='FTP for IIS7' service=ftpsvc action=allow protocol=TCP dir=in
 	    netsh advfirewall set global StatefulFTP disable
         Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        Write-Host "[*] Enabled FTP firewall access with the rule  'FTP for IIS7'"
+        Write-Host "[*] Stateful FTP is disableed"
         Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         Write-Host "[*] FTP username '$DefaultFtpUser'"
         Write-Host "[*] FTP password '$newFtpPassword'"
