@@ -63,7 +63,7 @@ Function Create-FtpSite() {
 
 	    netsh advfirewall set global StatefulFTP disable
         Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        Write-Host "[*] Stateful FTP is disableed"
+        Write-Host "[*] Stateful FTP is disabled"
         Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         Write-Host "[*] FTP username '$DefaultFtpUser'"
         Write-Host "[*] FTP password '$newFtpPassword'"
