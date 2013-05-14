@@ -50,19 +50,23 @@ Function Create-FtpSite() {
     $firewallSupport.highDataChannelPort = 5050
     $firewallSupport | Set-WebConfiguration system.ftpServer/firewallSupport
 
-    $OS = (Get-WmiObject Win32_OperatingSystem).Version
-    if ($OS -lt "6.1.7601") 
+   # Less than 2008
+    if ($OS -lt "6.1.7601")
     {
-	    Write-Warning "[*] Windows Server 2003 and Windows Server 2003 R2 are not supported!"
+        Write-Warning "[*] Windows Server 2003 and Windows Server 2003 R2 are not supported!"
     }
-    elseif ($OS -eq "6.1.7601") {
-            $SelfSignedCert = "CN=WMSvc*"
+    # 2008 ++
+    elseif ($OS -ge "6.1.7601") {
+        $SelfSignedCert = "CN=WMSvc*"
     }
-    elseif ($OS -eq "6.2.9200") {
-        $SelfSignedCert = "CN=MgmtSvc*"
-    }
+    # Not working as intended on some builds
+    # 2012
+    #elseif ($OS -eq "6.2.9200") {
+    #    $SelfSignedCert = "CN=MgmtSvc*"
+    #}
 
     cd Microsoft.PowerShell.Security\Certificate::localmachine\my
+    #$cert = Get-ChildItem | Where-Object {$_.subject -like $env:COMPUTERNAME } | select thumbprint | foreach { $_.thumbprint }
     $cert = Get-ChildItem | Where-Object {$_.subject -like $SelfSignedCert } | select thumbprint | foreach { $_.thumbprint }
     Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.serverCertHash -Value $cert
     Write-Host "Disploay certificate"
