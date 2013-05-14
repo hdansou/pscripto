@@ -29,6 +29,12 @@ Function Create-FtpSite() {
     #Start-Sleep -Seconds 1
     New-WebFtpSite -Name $DefaultFtpSiteName -PhysicalPath $DefaultFtpPath  -Port $DefaultNonSecureFtpPort -IPAddress * 
     
+    # Apply permissions to wwwroot Folder
+    $acl = (Get-Item $DefaultFtpPath).GetAccessControl("Access")
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($DefaultFtpUser,"Modify","ContainerInherit, ObjectInherit","None","Allow")
+    $acl.AddAccessRule($rule)
+    Set-Acl $DefaultWebPath $acl
+    
     # appcmd replacement
     # Configure IIS Site Properties
     Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.controlChannelPolicy -Value 1
