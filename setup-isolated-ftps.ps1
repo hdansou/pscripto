@@ -98,17 +98,19 @@ Function Create-Isolated-Ftpsite() {
     {
         Write-Warning "[*] Windows Server 2003 and Windows Server 2003 R2 are not supported!"
     }
-    # 2008
-    elseif ($OS -eq "6.1.7601") {
+    # 2008 ++
+    elseif ($OS -ge "6.1.7601") {
         $SelfSignedCert = "CN=WMSvc*"
     }
-    # 2012
-    elseif ($OS -eq "6.2.9200") {
-        $SelfSignedCert = "CN=MgmtSvc*"
-    }
+    # Not working in test servers
+    # 2012 
+    #elseif ($OS -eq "6.2.9200") {
+    #    $SelfSignedCert = "CN=MgmtSvc*"
+    #}
     
     # Get SelfSignedCert
     cd Microsoft.PowerShell.Security\Certificate::localmachine\my
+    #$cert = Get-ChildItem | Where-Object {$_.subject -match $env:COMPUTERNAME } | select thumbprint | foreach { $_.thumbprint }
     $cert = Get-ChildItem | Where-Object {$_.subject -like $SelfSignedCert } | select thumbprint | foreach { $_.thumbprint }
     # Set site to use SelfSignedCert
     Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.serverCertHash -Value $cert
