@@ -1,11 +1,4 @@
-# Setup FTP in IIS based on user isolation setup with FTP over SSL
-# Author : John Moore
-# Version : 0.0.1
-# Date : 13/5/2013
-
 Function Generate-Password ($Length = 14) {
-    # Author : Hounsou Dansou
-    # Source : Setup-FTPS.ps1
     # Run the method without parameter and get a password with 15 characters long
     # Generate-Password
     # Run the method with parameter and get a password with desired characters long
@@ -21,14 +14,19 @@ Function Generate-Password ($Length = 14) {
 
 
 Function Create-Isolated-Ftpsite() {
+    # Creates an Isolated FTPS site
+    # And all directories needed by the site user
+    # Links wwwroot in isolated home to c:\inetpub\wwwroot
+    # Sets FTP and NTFS permissions accordingly
+    
     Import-Module WebAdministration
     $DefaultWebPath = "c:\inetpub\wwwroot\"
     $DefaultFtpPath = "c:\inetpub\ftproot\"
     $DefaultNonSecureFtpPort = 21
     $DefaultLocalUserPath = $DefaultFtpPath + "LocalUser"
     $DefaultFtpSiteName = "FTPSIsolated001"
-    $DefaultFtpUserFolder = $DefaultLocalUserPath + '\' + $DefaultFtpUser
     $DefaultFtpUser = $DefaultFtpSiteName + "user"
+    $DefaultFtpUserFolder = $DefaultLocalUserPath + '\' + $DefaultFtpUser
     $DefaultFtpGroup = "FTP_USERS"
     $HardPath = $DefaultLocalUserPath + '\' + $DefaultFtpUser + '\wwwroot'
     $VirtualPath = 'IIS:\Sites\' + $DefaultFtpSiteName + '\LocalUser\' + $DefaultFtpUser + '\wwwroot'
@@ -47,8 +45,15 @@ Function Create-Isolated-Ftpsite() {
     New-WebFtpSite -Name $DefaultFtpSiteName -PhysicalPath $DefaultFtpPath -Port $DefaultNonSecureFtpPort -IPAddress *
     
     # Create Isolated Environment
-    New-Item -Type Directory -Path $DefaultLocalUserPath
-    New-Item -Type Directory -Path $DefaultFtpUserFolder
+    if(!(Test-Path $DefaultLocalUserPath)) {
+        New-Item -Type Directory -Path $DefaultLocalUserPath
+    }
+    else {Write-Host $DefaultLocalUserPath + ' Already exists.'}
+
+    if(!(Test-Path $DefaultFtpUserFolder)) {
+        New-Item -Type Directory -Path $DefaultFtpUserFolder
+    }
+    else {Write-Host $DefaultFtpUserFolder + ' Already exists.'}
 
     # Apply permissions to LocalUser Folder
     $acl = (Get-Item $DefaultLocalUserPath).GetAccessControl("Access")
@@ -87,16 +92,6 @@ Function Create-Isolated-Ftpsite() {
     $firewallSupport.highDataChannelPort = 5050
     $firewallSupport | Set-WebConfiguration system.ftpServer/firewallSupport
 
-    # Depricated Section
-    ## appcmd will be replace on the next version
-    ##c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.controlChannelPolicy:SslRequire
-    ##c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.dataChannelPolicy:SslRequire
-    ##c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.ssl128:true
-    ##c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.authentication.basicAuthentication.enabled:true
-    ##c:\windows\system32\inetsrv\appcmd.exe set config $DefaultFtpSiteName /section:system.ftpserver/security/authorization /+"[accessType='Allow',permissions='Read,Write',users='$DefaultFtpUser']" /commit:apphost
-    ##c:\windows\system32\inetsrv\appcmd.exe set config -section:system.ftpServer/firewallSupport /lowDataChannelPort:'5000' /commit:apphost
-    ##c:\windows\system32\inetsrv\appcmd.exe set config -section:system.ftpServer/firewallSupport /highDataChannelPort:'5050' /commit:apphost
-    
     # Check which version of Windows Server we are running
     # Less than 2008
     if ($OS -lt "6.1.7601")
@@ -138,8 +133,7 @@ Function Create-Isolated-Ftpsite() {
 }
 
 Function Add-FtpDependencies () {
-    # Author : Hounsou Dansou
-    # Source : Setup-FTPS.ps1
+    # Checks to see if FTP Server role has already been installed
     Import-Module ServerManager
     #Get-WindowsFeature
     $out = Add-WindowsFeature -Name Web-Ftp-Server -IncludeAllSubFeature
@@ -152,8 +146,6 @@ Function Add-FtpDependencies () {
 }
 
 Function List-Ips(){
-    # Author : Hounsou Dansou
-    # Source : Setup-FTPS.ps1
     # There is a cmdlet to get the IP on 2012 but not 2008. Using this method for now
 
     $Computer = "." 
