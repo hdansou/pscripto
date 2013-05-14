@@ -33,7 +33,7 @@ Function Create-FtpSite() {
     $acl = (Get-Item $DefaultFtpPath).GetAccessControl("Access")
     $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($DefaultFtpUser,"Modify","ContainerInherit, ObjectInherit","None","Allow")
     $acl.AddAccessRule($rule)
-    Set-Acl $DefaultWebPath $acl
+    Set-Acl $DefaultFtpPath $acl
     
     # appcmd replacement
     # Configure IIS Site Properties
