@@ -58,7 +58,7 @@ Function Create-FtpSite() {
 
     cd Microsoft.PowerShell.Security\Certificate::localmachine\my
     $cert = Get-ChildItem | Where-Object {$_.subject -like $SelfSignedCert } | select thumbprint | foreach { $_.thumbprint }
-    c:\windows\system32\inetsrv\appcmd.exe set config -section:system.applicationHost/sites /[name="'$DefaultFtpSiteName'"].ftpServer.security.ssl.serverCertHash:$cert /commit:apphost
+    Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.serverCertHash -Value $cert
     Write-Host "Disploay certificate"
     Write-Host $cert
     
