@@ -14,6 +14,7 @@ Function Generate-Password ($Length = 14) {
 
 
 Function Create-FtpSite() {
+    Import-Module WebAdministration
     $DefaultFtpPath = "c:\inetpub\wwwroot\"
     $DefaultNonSecureFtpPort = 21
     #$DefaultFtpSiteName = "Default FTP Site"
@@ -22,56 +23,67 @@ Function Create-FtpSite() {
 
     # Create FTP user Account
     $newFtpPassword = Generate-Password
-	net user /add $DefaultFtpUser $newFtpPassword
+    net user /add $DefaultFtpUser $newFtpPassword
     Write-Host "[*] Completed '$DefaultFtpUser' creation"
     
     #Start-Sleep -Seconds 1
-	New-WebFtpSite -Name $DefaultFtpSiteName -PhysicalPath $DefaultFtpPath  -Port $DefaultNonSecureFtpPort -IPAddress * 
+    New-WebFtpSite -Name $DefaultFtpSiteName -PhysicalPath $DefaultFtpPath  -Port $DefaultNonSecureFtpPort -IPAddress * 
     
-    # appcmd will be replace on the next version
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.controlChannelPolicy:SslRequire
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.dataChannelPolicy:SslRequire
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.ssl.ssl128:true
-    c:\windows\system32\inetsrv\appcmd.exe set site /site.name:$DefaultFtpSiteName /ftpServer.security.authentication.basicAuthentication.enabled:true
-    c:\windows\system32\inetsrv\appcmd.exe set config $DefaultFtpSiteName /section:system.ftpserver/security/authorization /+"[accessType='Allow',permissions='Read,Write',users='$DefaultFtpUser']" /commit:apphost
-    c:\windows\system32\inetsrv\appcmd.exe set config -section:system.ftpServer/firewallSupport /lowDataChannelPort:'5000' /commit:apphost
-    c:\windows\system32\inetsrv\appcmd.exe set config -section:system.ftpServer/firewallSupport /highDataChannelPort:'5050' /commit:apphost
+    # Apply permissions to wwwroot Folder
+    $acl = (Get-Item $DefaultFtpPath).GetAccessControl("Access")
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($DefaultFtpUser,"Modify","ContainerInherit, ObjectInherit","None","Allow")
+    $acl.AddAccessRule($rule)
+    Set-Acl $DefaultFtpPath $acl
     
+    # appcmd replacement
+    # Configure IIS Site Properties
+    Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.controlChannelPolicy -Value 1
+    Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.dataChannelPolicy -Value 1
+    Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.ssl128 -Value $true
+    Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.authentication.basicAuthentication.enabled -Value $true
+    # Alter FTPServer Configuration
+    # Add Allow rule for our ftpGroup (Permission=3 ==> Read+Write)
+    Add-WebConfiguration "/system.ftpServer/security/authorization"  -value @{accessType="Allow"; users=$DefaultFtpUser; permissions=3} -PSPath IIS:\ -location $DefaultFtpSiteName
+    # Change the lower and upper dataChannel ports
+    $firewallSupport = Get-WebConfiguration system.ftpServer/firewallSupport
+    $firewallSupport.lowDataChannelPort = 5001
+    $firewallSupport.highDataChannelPort = 5050
+    $firewallSupport | Set-WebConfiguration system.ftpServer/firewallSupport
 
- 
-    
-    $OS = (Get-WmiObject Win32_OperatingSystem).Version
-    if ($OS -lt "6.1.7601") 
+   # Less than 2008
+    if ($OS -lt "6.1.7601")
     {
-	    Write-Warning "[*] Windows Server 2003 and Windows Server 2003 R2 are not supported!"
+        Write-Warning "[*] Windows Server 2003 and Windows Server 2003 R2 are not supported!"
     }
-    elseif ($OS -eq "6.2.9200") {
-        $SelfSignedCert = "CN=MgmtSvc*"
+    # 2008 ++
+    elseif ($OS -ge "6.1.7601") {
+        $SelfSignedCert = "CN=WMSvc*"
     }
-    elseif ($OS -eq "6.1.7601") {
-            $SelfSignedCert = "CN=WMSvc*"
-    }
-     
+    # Not working as intended on some builds
+    # 2012
+    #elseif ($OS -eq "6.2.9200") {
+    #    $SelfSignedCert = "CN=MgmtSvc*"
+    #}
 
-        cd Microsoft.PowerShell.Security\Certificate::localmachine\my
-        $cert = Get-ChildItem | Where-Object {$_.subject -like $SelfSignedCert } | select thumbprint | foreach { $_.thumbprint }
-        c:\windows\system32\inetsrv\appcmd.exe set config -section:system.applicationHost/sites /[name="'$DefaultFtpSiteName'"].ftpServer.security.ssl.serverCertHash:$cert /commit:apphost
-        Write-Host "Disploay certificate"
-        Write-Host $cert
-
-        Write-Host "[*] Completed $DefaultFtpSiteName creation"	
-
-	    netsh advfirewall set global StatefulFTP disable
-        Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        Write-Host "[*] Stateful FTP is disabled"
-        Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        Write-Host "[*] FTP username '$DefaultFtpUser'"
-        Write-Host "[*] FTP password '$newFtpPassword'"
-        Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        Write-output "[*] FTP service status"
-        Restart-Service ftpsvc
-        Get-Service ftpsvc
-    }
+    cd Microsoft.PowerShell.Security\Certificate::localmachine\my
+    #$cert = Get-ChildItem | Where-Object {$_.subject -like $env:COMPUTERNAME } | select thumbprint | foreach { $_.thumbprint }
+    $cert = Get-ChildItem | Where-Object {$_.subject -like $SelfSignedCert } | select thumbprint | foreach { $_.thumbprint }
+    Set-ItemProperty IIS:\Sites\$DefaultFtpSiteName -Name ftpServer.security.ssl.serverCertHash -Value $cert
+    Write-Host "Disploay certificate"
+    Write-Host $cert
+    
+    Write-Host "[*] Completed $DefaultFtpSiteName creation"	
+    netsh advfirewall set global StatefulFTP disable
+    Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    Write-Host "[*] Stateful FTP is disabled"
+    Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    Write-Host "[*] FTP username '$DefaultFtpUser'"
+    Write-Host "[*] FTP password '$newFtpPassword'"
+    Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    Write-output "[*] FTP service status"
+    Restart-Service ftpsvc
+    Get-Service ftpsvc
+}
 
 
 Function Add-FtpDependencies () {
@@ -96,18 +108,16 @@ Function List-Ips(){
     Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 
     $count = 0 
     foreach ($IPConfig in $IPConfigSet) { 
-    if ($Ipconfig.IPaddress) { 
-        foreach ($addr in $Ipconfig.Ipaddress) { 
-            "IP Address   : {0}" -f  $addr; 
-            $count++  
-        } 
-    }
-    
-} 
-if ($count -eq 0) {"No IP addresses found"} 
-
-else {"[*] $Count IP addresses found on this system"} 
-Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        if ($Ipconfig.IPaddress) { 
+            foreach ($addr in $Ipconfig.Ipaddress) { 
+                "IP Address   : {0}" -f  $addr; 
+                $count++  
+            } 
+        }
+    } 
+    if ($count -eq 0) {"No IP addresses found"} 
+    else {"[*] $Count IP addresses found on this system"} 
+    Write-output "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 }
 
 
