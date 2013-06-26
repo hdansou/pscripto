@@ -20,6 +20,7 @@ Function Create-FtpSite() {
     #$DefaultFtpSiteName = "Default FTP Site"
     $DefaultFtpSiteName = "FTPSSite001"
     $DefaultFtpUser = $DefaultFtpSiteName + "user"
+    $OS = (Get-WmiObject Win32_OperatingSystem).Version
 
     # Create FTP user Account
     $newFtpPassword = Generate-Password
